@@ -1,0 +1,6 @@
+[submodule "shaders"]
+	path = shaders
+	url = git://github.com/omcfadde/gl2progs.git
+[submodule "idtech4"]
+	path = idtech4
+	url = git@github.com:havlenapetr/idtech4.git
