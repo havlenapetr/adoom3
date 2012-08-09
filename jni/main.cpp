@@ -35,6 +35,8 @@ If you have questions concerning this license or the applicable additional terms
 
 #include <android_native_app_glue.h>
 
+#define NO_SOUND 1
+
 extern void GLimp_AndroidInit(ANativeWindow* win);
 extern void GLimp_AndroidQuit();
 
@@ -71,6 +73,7 @@ public:
         GLimp_AndroidInit(win);
         Posix_EarlyInit();
         common->Init(0, NULL, debug ?
+                //"+devmap game/mp/d3dm1 +com_showFPS 1" : NULL);
                 "+devmap testmaps/test_box +com_showFPS 1" : NULL);
         Posix_LateInit();
     }
@@ -200,8 +203,10 @@ void android_main(struct android_app* state) {
     cvarSystem->SetCVarBool("com_speeds",  true);
     cvarSystem->SetCVarBool("com_showMemoryUsage",  true);
 #endif
+#ifdef NO_SOUND
+    cvarSystem->SetCVarBool("s_noSound", true);
+#endif
 
-    Sys_Printf("main loop started");
     while (!engine.isExiting()) {
         int ident;
         int events;
@@ -221,5 +226,4 @@ void android_main(struct android_app* state) {
 
         engine.render();
     }
-    Sys_Printf("main loop stopped");
 }
