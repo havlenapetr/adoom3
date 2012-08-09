@@ -5,6 +5,16 @@ LOCAL_C_INCLUDES := $(JPEG_INCLUDE_DIR)
 
 LOCAL_MODULE := libjpeg
 
+ifeq ($(APP_USE_PREBUILT_JPEG),true)
+LOCAL_SRC_FILES := libjpeg.so
+include $(PREBUILT_SHARED_LIBRARY)
+
+include $(CLEAR_VARS)
+LOCAL_C_INCLUDES := $(JPEG_INCLUDE_DIR)
+LOCAL_MODULE := libjpeg_addon
+LOCAL_SRC_FILES += jpeg_mem_src.cpp
+include $(BUILD_STATIC_LIBRARY)
+else
 LOCAL_SRC_FILES := \
     jcapimin.c \
     jccoefct.c \
@@ -54,3 +64,4 @@ LOCAL_SRC_FILES := \
 LOCAL_SRC_FILES += jpeg_mem_src.cpp
 
 include $(BUILD_STATIC_LIBRARY)
+endif

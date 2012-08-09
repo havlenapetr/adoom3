@@ -55,9 +55,18 @@ LOCAL_STATIC_LIBRARIES += \
     libsound \
     libid \
     libsys \
-    libjpeg \
     libvorbis \
     libogg
+
+ifeq ($(APP_USE_PREBUILT_JPEG),true)
+LOCAL_STATIC_LIBRARIES += \
+    libjpeg_addon
+LOCAL_SHARED_LIBRARIES := \
+    libjpeg
+else
+LOCAL_STATIC_LIBRARIES += \
+    libjpeg
+endif
 
 # Android native glue
 LOCAL_STATIC_LIBRARIES += \
