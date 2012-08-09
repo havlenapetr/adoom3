@@ -318,6 +318,10 @@ bool GLimp_Init(glimpParms_t params) {
 
     GLimp_ActivateContext();
 
+    // print some gpu info
+    Sys_Printf("GL_RENDERER: %s", glGetString(GL_RENDERER));
+    Sys_Printf("GL_EXTENSIONS: %s", glGetString(GL_EXTENSIONS));
+
 #if 0
     // draw something to show that GL is alive
     glClearColor( 0.5, 0.5, 0.7, 0 );

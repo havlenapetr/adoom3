@@ -70,6 +70,9 @@ public:
     }
 
     void start(ANativeWindow* win, bool debug = false) {
+#if PROFILING_ENABLED
+        monstartup("doom.so");
+#endif
         GLimp_AndroidInit(win);
         Posix_EarlyInit();
         common->Init(0, NULL, debug ?
@@ -79,6 +82,9 @@ public:
     }
 
     void stop() {
+#if PROFILING_ENABLED
+        moncleanup();
+#endif
         GLimp_AndroidQuit();
         common->Quit();
         mExiting = true;

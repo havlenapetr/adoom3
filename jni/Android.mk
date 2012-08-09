@@ -68,6 +68,11 @@ LOCAL_STATIC_LIBRARIES += \
     libjpeg
 endif
 
+#ifeq ($(APP_ENABLE_PROFILING),true)
+#LOCAL_CFLAGS += -pg -DPROFILING_ENABLED
+#LOCAL_STATIC_LIBRARIES += andprof
+#endif
+
 # Android native glue
 LOCAL_STATIC_LIBRARIES += \
     android_native_app_glue
