@@ -107,14 +107,17 @@ public:
     }
 
     virtual short*  GetMixBuffer() {
+        Sys_Printf("GetMixBuffer - start");
         if(!mInternalBuffer) {
             mInternalBuffer = new AAudioBuffer(GetMixBufferSize());
         }
+        Sys_Printf("GetMixBuffer - end");
         return (short *) mInternalBuffer->data();
     }
 
 private:
     static void     PlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context);
+    bool            EnqueueBuffer(AAudioBuffer* buffer = NULL);
 #if 0
     AMutex                          mMutex;
     ACondition                      mCond;
@@ -170,38 +173,42 @@ idAudioHardwareAndroid::~idAudioHardwareAndroid() {
     }
 }
 
-/* static */
-void idAudioHardwareAndroid::PlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context) {
-    Sys_Printf("%s", __FUNCTION__);
-    assert(context);
-    idAudioHardwareAndroid* driver = static_cast<idAudioHardwareAndroid*>(context);
-    assert(driver);
-
-    // enqueue another buffer
-    SLresult result = (*driver->mPlayerBuffer)->Enqueue(driver->mPlayerBuffer,
-            driver->mInternalBuffer->data(), driver->mInternalBuffer->size());
-
-    // the most likely other result is SL_RESULT_BUFFER_INSUFFICIENT,
-    // which for this code example would indicate a programming error
-    assert(SL_RESULT_SUCCESS == result);
-}
-
-void idAudioHardwareAndroid::Write(bool flushing) {
-    static bool alreadyEnqueued = false;
-
-    assert(mInternalBuffer);
-    if (alreadyEnqueued) {
-        return;
-	}
+bool idAudioHardwareAndroid::EnqueueBuffer(AAudioBuffer* buffer) {
+    Sys_Printf("EnqueueBuffer - start");
+    if(!buffer) {
+        buffer = mInternalBuffer;
+    }
+    assert(buffer);
 
     // enqueue another buffer
     SLresult result = (*mPlayerBuffer)->Enqueue(mPlayerBuffer,
-            mInternalBuffer->data(), mInternalBuffer->size());
+            buffer->data(), buffer->size());
 
     // the most likely other result is SL_RESULT_BUFFER_INSUFFICIENT,
     // which for this code example would indicate a programming error
-    assert(SL_RESULT_SUCCESS == result);
-    alreadyEnqueued = true;
+    Sys_Printf("EnqueueBuffer - end");
+    return SL_RESULT_SUCCESS == result;
+}
+
+/* static */
+void idAudioHardwareAndroid::PlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context) {
+    assert(context);
+    idAudioHardwareAndroid* driver = static_cast<idAudioHardwareAndroid*>(context);
+    assert(driver);
+    driver->EnqueueBuffer();
+}
+
+void idAudioHardwareAndroid::Write(bool flushing) {
+    Sys_Printf("Write(%i) - start", flushing);
+    static bool alreadyEnqueued = false;
+    if (alreadyEnqueued) {
+        goto end;
+    }
+
+    alreadyEnqueued = EnqueueBuffer();
+
+end:
+    Sys_Printf("Write - end");
 }
 
 bool idAudioHardwareAndroid::Initialize() {
