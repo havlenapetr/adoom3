@@ -61,8 +61,6 @@ LOCAL_STATIC_LIBRARIES += \
 ifeq ($(APP_USE_PREBUILT_JPEG),true)
 LOCAL_STATIC_LIBRARIES += \
     libjpeg_addon
-LOCAL_SHARED_LIBRARIES := \
-    libjpeg
 else
 LOCAL_STATIC_LIBRARIES += \
     libjpeg
@@ -78,6 +76,10 @@ LOCAL_STATIC_LIBRARIES += \
     android_native_app_glue
 
 LOCAL_LDLIBS := -landroid -lEGL -lGLESv2 -lOpenSLES -llog -ldl
+ifeq ($(APP_USE_PREBUILT_JPEG),true)
+LOCAL_LDLIBS += -L$(call host-path,$(JPEG_INCLUDE_DIR))
+LOCAL_LDLIBS += -ljpeg
+endif
 
 include $(BUILD_SHARED_LIBRARY)
 
