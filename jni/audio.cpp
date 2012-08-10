@@ -114,9 +114,8 @@ public:
     }
 
 private:
-#if 0
     static void     PlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context);
-
+#if 0
     AMutex                          mMutex;
     ACondition                      mCond;
 #endif
@@ -171,19 +170,29 @@ idAudioHardwareAndroid::~idAudioHardwareAndroid() {
     }
 }
 
-#if 0
 /* static */
 void idAudioHardwareAndroid::PlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context) {
     Sys_Printf("%s", __FUNCTION__);
     assert(context);
     idAudioHardwareAndroid* driver = static_cast<idAudioHardwareAndroid*>(context);
     assert(driver);
-    driver->Write();
+
+    // enqueue another buffer
+    SLresult result = (*driver->mPlayerBuffer)->Enqueue(driver->mPlayerBuffer,
+            driver->mInternalBuffer->data(), driver->mInternalBuffer->size());
+
+    // the most likely other result is SL_RESULT_BUFFER_INSUFFICIENT,
+    // which for this code example would indicate a programming error
+    assert(SL_RESULT_SUCCESS == result);
 }
-#endif
 
 void idAudioHardwareAndroid::Write(bool flushing) {
+    static bool alreadyEnqueued = false;
+
     assert(mInternalBuffer);
+    if (alreadyEnqueued) {
+        return;
+	}
 
     // enqueue another buffer
     SLresult result = (*mPlayerBuffer)->Enqueue(mPlayerBuffer,
@@ -192,6 +201,7 @@ void idAudioHardwareAndroid::Write(bool flushing) {
     // the most likely other result is SL_RESULT_BUFFER_INSUFFICIENT,
     // which for this code example would indicate a programming error
     assert(SL_RESULT_SUCCESS == result);
+    alreadyEnqueued = true;
 }
 
 bool idAudioHardwareAndroid::Initialize() {
@@ -252,11 +262,9 @@ bool idAudioHardwareAndroid::Initialize() {
     result = (*mPlayer)->GetInterface(mPlayer, SL_IID_BUFFERQUEUE, &mPlayerBuffer);
     CHECK_INIT(SL_RESULT_SUCCESS == result);
 
-#if 0
     // register callback on the buffer queue
     result = (*mPlayerBuffer)->RegisterCallback(mPlayerBuffer, PlayerCallback, this);
     CHECK_INIT(SL_RESULT_SUCCESS == result);
-#endif
 
     // set the player's state to playing
     result = (*mIPlayer)->SetPlayState(mIPlayer, SL_PLAYSTATE_PLAYING);

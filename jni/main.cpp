@@ -35,7 +35,7 @@ If you have questions concerning this license or the applicable additional terms
 
 #include <android_native_app_glue.h>
 
-#define NO_SOUND 1
+//#define NO_SOUND 1
 
 extern void GLimp_AndroidInit(ANativeWindow* win);
 extern void GLimp_AndroidQuit();
