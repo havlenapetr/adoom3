@@ -1,4 +1,4 @@
-# Copyright (C) 2012 Havlena Petr <havlenapetr@gmail.com>
+# Copyright (C) 2009 The Android Open Source Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,22 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
-LOCAL_MODULE := libogg
-
-OGG_INCLUDE_DIR := $(LOCAL_PATH)/include
-LOCAL_C_INCLUDES := \
-    $(OGG_INCLUDE_DIR)
-
-LOCAL_CFLAGS += \
-    -ffast-math -fsigned-char \
-    -march=armv6 -marm -mfloat-abi=softfp -mfpu=vfp
-
-LOCAL_SRC_FILES := \
-    bitwise.c \
-    framing.c
-
-include $(BUILD_STATIC_LIBRARY)
+OPENAL_INCLUDE_DIR := $(LOCAL_PATH)/include
