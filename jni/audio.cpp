@@ -116,13 +116,6 @@ public:
     }
 
 private:
-    static void     PlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context);
-    bool            EnqueueBuffer(AAudioBuffer* buffer = NULL);
-#if 0
-    AMutex                          mMutex;
-    ACondition                      mCond;
-#endif
-
     // engine interfaces
     SLObjectItf                     mEngine;
     SLEngineItf                     mIEngine;
@@ -133,7 +126,12 @@ private:
     // buffer queue player interfaces
     SLObjectItf                     mPlayer;
     SLPlayItf                       mIPlayer;
-    SLAndroidSimpleBufferQueueItf   mPlayerBuffer;
+    SLDataFormat_PCM                mPcm;
+    SLBufferQueueItf                mBufferQueue;
+    SLDataLocator_BufferQueue       mBufferQueueLoc;
+    SLDataLocator_OutputMix         mOutputMix;
+    SLDataSource                    mAudioSource;
+    SLDataSink                      mAudioSink;
 
     AAudioBuffer*                   mInternalBuffer;
 };
@@ -144,16 +142,19 @@ idAudioHardwareAndroid::idAudioHardwareAndroid()
       mOutput(NULL),
       mPlayer(NULL),
       mIPlayer(NULL),
-      mPlayerBuffer(NULL),
+      mBufferQueue(NULL),
       mInternalBuffer(NULL) {
 }
 
 idAudioHardwareAndroid::~idAudioHardwareAndroid() {
+    if(mIPlayer) {
+        (*mIPlayer)->SetPlayState(mIPlayer, SL_PLAYSTATE_STOPPED);
+    }
     if (mPlayer) {
         (*mPlayer)->Destroy(mPlayer);
         mPlayer = NULL;
         mIPlayer = NULL;
-        mPlayerBuffer = NULL;
+        mBufferQueue = NULL;
     }
 
     if (mOutput) {
@@ -173,50 +174,30 @@ idAudioHardwareAndroid::~idAudioHardwareAndroid() {
     }
 }
 
-bool idAudioHardwareAndroid::EnqueueBuffer(AAudioBuffer* buffer) {
-    Sys_Printf("EnqueueBuffer - start");
-    if(!buffer) {
-        buffer = mInternalBuffer;
-    }
-    assert(buffer);
-
-    // enqueue another buffer
-    SLresult result = (*mPlayerBuffer)->Enqueue(mPlayerBuffer,
-            buffer->data(), buffer->size());
-
-    // the most likely other result is SL_RESULT_BUFFER_INSUFFICIENT,
-    // which for this code example would indicate a programming error
-    Sys_Printf("EnqueueBuffer - end");
-    return SL_RESULT_SUCCESS == result;
-}
-
-/* static */
-void idAudioHardwareAndroid::PlayerCallback(SLAndroidSimpleBufferQueueItf bq, void *context) {
-    assert(context);
-    idAudioHardwareAndroid* driver = static_cast<idAudioHardwareAndroid*>(context);
-    assert(driver);
-    driver->EnqueueBuffer();
-}
-
 void idAudioHardwareAndroid::Write(bool flushing) {
     Sys_Printf("Write(%i) - start", flushing);
-    static bool alreadyEnqueued = false;
-    if (alreadyEnqueued) {
-        goto end;
-    }
 
-    alreadyEnqueued = EnqueueBuffer();
+    assert(mPlayerBuffer && mInternalBuffer);
+
+    // Wait until the PCM data is done playing
+    SLBufferQueueState state;
+    do {
+        if ((*mBufferQueue)->GetState(mBufferQueue, &state) != SL_RESULT_SUCCESS) {
+			Sys_Printf("Can't obtain audio buffer queue state!");
+            return;
+        }
+        usleep(10000);
+    } while (state.count == mBufferQueueLoc.numBuffers);
+
+    // enqueue another buffer
+    SLresult result = (*mBufferQueue)->Enqueue(mBufferQueue,
+            mInternalBuffer->data(), mInternalBuffer->size());
 
 end:
     Sys_Printf("Write - end");
 }
 
 bool idAudioHardwareAndroid::Initialize() {
-#if 0
-    CHECK_INIT(mMutex.isValid());
-    CHECK_INIT(mCond.isValid());
-#endif
-
     // create engine
     SLresult result = slCreateEngine(&mEngine, 0, NULL, 0, NULL, NULL);
     CHECK_INIT(SL_RESULT_SUCCESS == result);
@@ -230,31 +211,45 @@ bool idAudioHardwareAndroid::Initialize() {
     CHECK_INIT(SL_RESULT_SUCCESS == result);
 
     // create output mix
-    const SLInterfaceID idsOutput[1] = {SL_IID_ENVIRONMENTALREVERB};
-    const SLboolean reqOutput[1] = {SL_BOOLEAN_FALSE};
-    result = (*mIEngine)->CreateOutputMix(mIEngine, &mOutput, 1, idsOutput, reqOutput);
+    const SLInterfaceID idsOutput[1] = {SL_IID_VOLUME};
+    const SLboolean reqOutput[1] = {SL_BOOLEAN_TRUE};
+    result = (*mIEngine)->CreateOutputMix(mIEngine, &mOutput, 0, idsOutput, reqOutput);
     CHECK_INIT(SL_RESULT_SUCCESS == result);
 
     // realize the output mix
     result = (*mOutput)->Realize(mOutput, SL_BOOLEAN_FALSE);
     CHECK_INIT(SL_RESULT_SUCCESS == result);
 
-    // configure audio source
-    SLDataLocator_AndroidSimpleBufferQueue loc_bufq = {SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE, 2};
-    SLDataFormat_PCM format_pcm = {SL_DATAFORMAT_PCM, 1, SL_SAMPLINGRATE_8,
-        SL_PCMSAMPLEFORMAT_FIXED_16, SL_PCMSAMPLEFORMAT_FIXED_16,
-        SL_SPEAKER_FRONT_CENTER, SL_BYTEORDER_LITTLEENDIAN};
-    SLDataSource audioSrc = {&loc_bufq, &format_pcm};
+    /* Setup the data source structure for the buffer queue */
+    mBufferQueueLoc.locatorType = SL_DATALOCATOR_BUFFERQUEUE;
+    mBufferQueueLoc.numBuffers = 4;  /* Four buffers in our buffer queue */
 
-    // configure audio sink
-    SLDataLocator_OutputMix loc_outmix = {SL_DATALOCATOR_OUTPUTMIX, mOutput};
-    SLDataSink audioSnk = {&loc_outmix, NULL};
+    /* Setup the format of the content in the buffer queue */
+    mPcm.formatType = SL_DATAFORMAT_PCM;
+    mPcm.numChannels = 2;
+    mPcm.samplesPerSec = SL_SAMPLINGRATE_11_025;
+    mPcm.bitsPerSample = SL_PCMSAMPLEFORMAT_FIXED_16;
+    mPcm.containerSize = 16;
+    mPcm.channelMask = SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT;
+    mPcm.endianness = SL_BYTEORDER_LITTLEENDIAN;
 
-    // create audio player
-    const SLInterfaceID idsPlayer[2] = {SL_IID_BUFFERQUEUE, SL_IID_EFFECTSEND};
-    const SLboolean reqPlayer[2] = {SL_BOOLEAN_TRUE, SL_BOOLEAN_TRUE};
-    result = (*mIEngine)->CreateAudioPlayer(mIEngine, &mPlayer, &audioSrc, &audioSnk,
-            2, idsPlayer, reqPlayer);
+    mAudioSource.pFormat = (void *)&mPcm;
+    mAudioSource.pLocator = (void *)&mBufferQueueLoc;
+
+    /* Setup the data sink structure */
+    mOutputMix.locatorType = SL_DATALOCATOR_OUTPUTMIX;
+    mOutputMix.outputMix = mOutput;
+    mAudioSink.pLocator = (void *)&mOutputMix;
+    mAudioSink.pFormat = NULL;
+
+    /* Set arrays required[] and iidArray[] for SEEK interface
+     (PlayItf is implicit) */
+    const SLInterfaceID iidPlayer[1] = {SL_IID_BUFFERQUEUE};
+    const SLboolean reqPlayer[1] = {SL_BOOLEAN_TRUE};
+
+    /* Create the music player */
+    result = (*mIEngine)->CreateAudioPlayer(mIEngine, &mPlayer,
+            &mAudioSource, &mAudioSink, 1, iidPlayer, reqPlayer);
     CHECK_INIT(SL_RESULT_SUCCESS == result);
 
     // realize the player
@@ -266,11 +261,7 @@ bool idAudioHardwareAndroid::Initialize() {
     CHECK_INIT(SL_RESULT_SUCCESS == result);
 
     // get the buffer queue interface
-    result = (*mPlayer)->GetInterface(mPlayer, SL_IID_BUFFERQUEUE, &mPlayerBuffer);
-    CHECK_INIT(SL_RESULT_SUCCESS == result);
-
-    // register callback on the buffer queue
-    result = (*mPlayerBuffer)->RegisterCallback(mPlayerBuffer, PlayerCallback, this);
+    result = (*mPlayer)->GetInterface(mPlayer, SL_IID_BUFFERQUEUE, &mBufferQueue);
     CHECK_INIT(SL_RESULT_SUCCESS == result);
 
     // set the player's state to playing
