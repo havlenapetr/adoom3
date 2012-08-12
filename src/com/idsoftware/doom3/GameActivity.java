@@ -1,5 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!--
 /*
 ===========================================================================
 
@@ -34,34 +32,38 @@ id Software LLC, c/o ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 US
 
 ===========================================================================
 */
--->
 
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.idsoftware.doom3">
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+package com.idsoftware.doom3;
 
-    <!-- This is the platform API where NativeActivity was introduced. -->
-    <uses-sdk android:minSdkVersion="8" />
-    <uses-feature android:glEsVersion="0x00020000" />
-    <supports-screens android:anyDensity="true" />
+import android.app.NativeActivity;
+import android.content.Context;
+import android.os.Bundle;
+import android.os.PowerManager;
 
-    <application android:icon="@drawable/ic_launcher"
-            android:label="@string/app_name">
+public class GameActivity extends NativeActivity {
 
-        <activity android:name=".GameActivity"
-                android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
-                android:screenOrientation="landscape"
-                android:configChanges="orientation|keyboardHidden">
-            <!-- Tell GameActivity the name of .so -->
-            <meta-data android:name="android.app.lib_name"
-                    android:value="doom" />
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+    private PowerManager.WakeLock mWakeLock;
 
-    </application>
-</manifest>
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        mWakeLock = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK,
+                GameActivity.class.toString());
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        mWakeLock.acquire();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        mWakeLock.release();
+    }
+}
