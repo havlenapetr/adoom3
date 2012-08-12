@@ -45,33 +45,6 @@ If you have questions concerning this license or the applicable additional terms
         return false;   \
     }
 
-class AAudioBuffer {
-public:
-    AAudioBuffer(size_t size)
-        : mData(malloc(size)),
-          mSize(size) {
-    }
-
-    ~AAudioBuffer() {
-        if(mData) {
-            free(mData);
-        }
-        mSize = 0;
-    }
-
-    void* data() {
-        return mData;
-    }
-
-    size_t size() {
-        return mSize;
-    }
-
-private:
-    void*       mData;
-    size_t      mSize;
-};
-
 class idAudioHardwareAndroid : public idAudioHardware {
 public:
     idAudioHardwareAndroid();
@@ -91,10 +64,7 @@ public:
         return false;
     }
 
-    virtual bool    Flush() {
-        // nothing here
-        return true;
-    }
+    virtual bool    Flush();
 
     virtual void    Write(bool flushing);
 
@@ -103,25 +73,31 @@ public:
     }
 
     virtual int     GetMixBufferSize() {
-        return MIXBUFFER_SAMPLES * 2/*m_channels*/ * GetNumberOfSpeakers();
+        return MIXBUFFER_SAMPLES * mPcm.numChannels * GetNumberOfSpeakers();
     }
 
     virtual short*  GetMixBuffer() {
-        Sys_Printf("GetMixBuffer - start");
+        Sys_DebugPrintf("GetMixBuffer - start");
         if(!mInternalBuffer) {
-            mInternalBuffer = new AAudioBuffer(GetMixBufferSize());
+            mInternalBuffer = malloc(GetMixBufferSize());
         }
-        Sys_Printf("GetMixBuffer - end");
-        return (short *) mInternalBuffer->data();
+        Sys_DebugPrintf("GetMixBuffer - end");
+        return (short *) mInternalBuffer;
     }
 
 private:
+    bool            WaitForQueue(unsigned int threshold);
+    static int      GetSLSamplingRate(int rate);
+
+    static const int                kQueueWaitTimeUs = 10000;
+
     // engine interfaces
     SLObjectItf                     mEngine;
     SLEngineItf                     mIEngine;
 
     // output mix interface
     SLObjectItf                     mOutput;
+    SLDataLocator_OutputMix         mOutputMix;
 
     // buffer queue player interfaces
     SLObjectItf                     mPlayer;
@@ -129,11 +105,8 @@ private:
     SLDataFormat_PCM                mPcm;
     SLBufferQueueItf                mBufferQueue;
     SLDataLocator_BufferQueue       mBufferQueueLoc;
-    SLDataLocator_OutputMix         mOutputMix;
-    SLDataSource                    mAudioSource;
-    SLDataSink                      mAudioSink;
 
-    AAudioBuffer*                   mInternalBuffer;
+    void*                           mInternalBuffer;
 };
 
 idAudioHardwareAndroid::idAudioHardwareAndroid()
@@ -169,32 +142,58 @@ idAudioHardwareAndroid::~idAudioHardwareAndroid() {
     }
 
     if(mInternalBuffer) {
-        delete mInternalBuffer;
+        free(mInternalBuffer);
         mInternalBuffer = NULL;
     }
 }
 
-void idAudioHardwareAndroid::Write(bool flushing) {
-    Sys_Printf("Write(%i) - start", flushing);
+/* static */
+int idAudioHardwareAndroid::GetSLSamplingRate(int rate) {
+    switch (rate) {
+		case 44100:
+            return SL_SAMPLINGRATE_44_1;
+	}
+    return -1;
+}
 
-    assert(mPlayerBuffer && mInternalBuffer);
+bool idAudioHardwareAndroid::Flush() {
+    return WaitForQueue(0);
+}
+
+bool idAudioHardwareAndroid::WaitForQueue(unsigned int threshold) {
+    Sys_DebugPrintf("Flush - start");
+    assert(mBufferQueue);
 
     // Wait until the PCM data is done playing
     SLBufferQueueState state;
     do {
         if ((*mBufferQueue)->GetState(mBufferQueue, &state) != SL_RESULT_SUCCESS) {
-			Sys_Printf("Can't obtain audio buffer queue state!");
-            return;
+            Sys_Printf("Can't obtain audio buffer queue state!");
+            return false;
         }
-        usleep(10000);
-    } while (state.count == mBufferQueueLoc.numBuffers);
+        usleep(kQueueWaitTimeUs);
+    } while (state.count > threshold);
+
+    Sys_DebugPrintf("Flush - end");
+    return true;
+}
+
+void idAudioHardwareAndroid::Write(bool flushing) {
+    Sys_DebugPrintf("Write(%i) - start", flushing);
+    assert(mBufferQueue);
+
+    WaitForQueue(mBufferQueueLoc.numBuffers - 1);
 
     // enqueue another buffer
     SLresult result = (*mBufferQueue)->Enqueue(mBufferQueue,
-            mInternalBuffer->data(), mInternalBuffer->size());
+            GetMixBuffer(), GetMixBufferSize());
+
+    if (flushing) {
+        Flush();
+    }
 
 end:
-    Sys_Printf("Write - end");
+    Sys_DebugPrintf("Write - end");
 }
 
 bool idAudioHardwareAndroid::Initialize() {
@@ -222,25 +221,28 @@ bool idAudioHardwareAndroid::Initialize() {
 
     /* Setup the data source structure for the buffer queue */
     mBufferQueueLoc.locatorType = SL_DATALOCATOR_BUFFERQUEUE;
-    mBufferQueueLoc.numBuffers = 4;  /* Four buffers in our buffer queue */
+    mBufferQueueLoc.numBuffers = 4;  /* number of buffers in our buffer queue */
 
     /* Setup the format of the content in the buffer queue */
     mPcm.formatType = SL_DATAFORMAT_PCM;
-    mPcm.numChannels = 2;
-    mPcm.samplesPerSec = SL_SAMPLINGRATE_11_025;
+    mPcm.numChannels = idSoundSystemLocal::s_numberOfSpeakers.GetInteger();
+    mPcm.samplesPerSec = GetSLSamplingRate(PRIMARYFREQ);
     mPcm.bitsPerSample = SL_PCMSAMPLEFORMAT_FIXED_16;
     mPcm.containerSize = 16;
     mPcm.channelMask = SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT;
     mPcm.endianness = SL_BYTEORDER_LITTLEENDIAN;
 
-    mAudioSource.pFormat = (void *)&mPcm;
-    mAudioSource.pLocator = (void *)&mBufferQueueLoc;
-
     /* Setup the data sink structure */
     mOutputMix.locatorType = SL_DATALOCATOR_OUTPUTMIX;
     mOutputMix.outputMix = mOutput;
-    mAudioSink.pLocator = (void *)&mOutputMix;
-    mAudioSink.pFormat = NULL;
+
+    SLDataSource audioSource;
+    audioSource.pFormat = (void *)&mPcm;
+    audioSource.pLocator = (void *)&mBufferQueueLoc;
+
+    SLDataSink audioSink;
+    audioSink.pLocator = (void *)&mOutputMix;
+    audioSink.pFormat = NULL;
 
     /* Set arrays required[] and iidArray[] for SEEK interface
      (PlayItf is implicit) */
@@ -249,7 +251,7 @@ bool idAudioHardwareAndroid::Initialize() {
 
     /* Create the music player */
     result = (*mIEngine)->CreateAudioPlayer(mIEngine, &mPlayer,
-            &mAudioSource, &mAudioSink, 1, iidPlayer, reqPlayer);
+            &audioSource, &audioSink, 1, iidPlayer, reqPlayer);
     CHECK_INIT(SL_RESULT_SUCCESS == result);
 
     // realize the player
