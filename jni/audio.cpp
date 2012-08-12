@@ -77,11 +77,9 @@ public:
     }
 
     virtual short*  GetMixBuffer() {
-        Sys_DebugPrintf("GetMixBuffer - start");
         if(!mInternalBuffer) {
             mInternalBuffer = malloc(GetMixBufferSize());
         }
-        Sys_DebugPrintf("GetMixBuffer - end");
         return (short *) mInternalBuffer;
     }
 
@@ -150,7 +148,7 @@ idAudioHardwareAndroid::~idAudioHardwareAndroid() {
 /* static */
 int idAudioHardwareAndroid::GetSLSamplingRate(int rate) {
     switch (rate) {
-		case 44100:
+        case 44100:
             return SL_SAMPLINGRATE_44_1;
 	}
     return -1;
@@ -161,7 +159,6 @@ bool idAudioHardwareAndroid::Flush() {
 }
 
 bool idAudioHardwareAndroid::WaitForQueue(unsigned int threshold) {
-    Sys_DebugPrintf("Flush - start");
     assert(mBufferQueue);
 
     // Wait until the PCM data is done playing
@@ -174,12 +171,10 @@ bool idAudioHardwareAndroid::WaitForQueue(unsigned int threshold) {
         usleep(kQueueWaitTimeUs);
     } while (state.count > threshold);
 
-    Sys_DebugPrintf("Flush - end");
     return true;
 }
 
 void idAudioHardwareAndroid::Write(bool flushing) {
-    Sys_DebugPrintf("Write(%i) - start", flushing);
     assert(mBufferQueue);
 
     WaitForQueue(mBufferQueueLoc.numBuffers - 1);
@@ -191,9 +186,6 @@ void idAudioHardwareAndroid::Write(bool flushing) {
     if (flushing) {
         Flush();
     }
-
-end:
-    Sys_DebugPrintf("Write - end");
 }
 
 bool idAudioHardwareAndroid::Initialize() {
