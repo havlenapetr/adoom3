@@ -72,6 +72,10 @@ LOCAL_STATIC_LIBRARIES += \
     libjpeg
 endif
 
+ifeq ($(ETC1_PRESENTED),true)
+LOCAL_STATIC_LIBRARIES += libETC1
+endif
+
 #ifeq ($(APP_ENABLE_PROFILING),true)
 #LOCAL_CFLAGS += -pg -DPROFILING_ENABLED
 #LOCAL_STATIC_LIBRARIES += andprof
