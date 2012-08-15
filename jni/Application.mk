@@ -13,12 +13,8 @@
 # limitations under the License.
 #
 
-LOCAL_PATH := $(call my-dir)
-
-BASE_PATH := $(LOCAL_PATH)
-
-# build our third party libraries
-include $(call all-makefiles-under,$(BASE_PATH))
-
-# build doom3 engine and game
-include $(BASE_PATH)/doom3.mk
+APP_DEMO        := false
+APP_ABI         := armeabi-v7a
+APP_NEON        := true
+APP_USE_PREBUILT_JPEG := true
+APP_PLATFORM    := android-9

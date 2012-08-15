@@ -212,7 +212,7 @@ void android_main(struct android_app* state) {
 #ifdef NO_SOUND
     cvarSystem->SetCVarBool("s_noSound", true);
 #else
-    //cvarSystem->SetCVarInteger("com_asyncSound", 0);
+    cvarSystem->SetCVarInteger("com_asyncSound", 0);
 #endif
 
     while (!engine.isExiting()) {
