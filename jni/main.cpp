@@ -35,7 +35,11 @@ If you have questions concerning this license or the applicable additional terms
 
 #include <android_native_app_glue.h>
 
-//#define NO_SOUND 1
+#if PROFILING_ENABLED
+#include <prof.h>
+#endif
+
+#define NO_SOUND 1
 
 extern void GLimp_AndroidInit(ANativeWindow* win);
 extern void GLimp_AndroidQuit();
@@ -71,7 +75,7 @@ public:
 
     void start(ANativeWindow* win, bool debug = false) {
 #if PROFILING_ENABLED
-        monstartup("doom.so");
+        monstartup("libdoom.so");
 #endif
         GLimp_AndroidInit(win);
         Posix_EarlyInit();
