@@ -17,6 +17,17 @@ LOCAL_PATH := $(call my-dir)
 
 BASE_PATH := $(LOCAL_PATH)
 
+GLOBAL_CFLAGS := -ffast-math -O3 -fomit-frame-pointer \
+    -Wno-psabi -mfloat-abi=softfp -fno-unsafe-math-optimizations
+
+ifeq ($(APP_NEON),true)
+GLOBAL_CFLAGS += -mfpu=neon
+endif
+
+ifeq ($(APP_DEMO),true)
+GLOBAL_CFLAGS += -DID_DEMO_BUILD
+endif
+
 # build our third party libraries
 include $(call all-makefiles-under,$(BASE_PATH))
 
