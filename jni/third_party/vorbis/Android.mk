@@ -24,6 +24,8 @@ LOCAL_C_INCLUDES := \
     $(LOCAL_PATH)/include \
     $(LOCAL_PATH)/lib
 
+LOCAL_CFLAGS := $(GLOBAL_CFLAGS)
+
 LOCAL_SRC_FILES := \
     lib/encode_file.c \
     lib/analysis.c \

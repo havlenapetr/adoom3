@@ -35,7 +35,7 @@ If you have questions concerning this license or the applicable additional terms
 
 #include <android_native_app_glue.h>
 
-#if PROFILING_ENABLED
+#if ID_PROFILING_ENABLED
 #include <prof.h>
 #endif
 
@@ -74,7 +74,7 @@ public:
     }
 
     void start(ANativeWindow* win, bool debug = false) {
-#if PROFILING_ENABLED
+#if ID_PROFILING_ENABLED
         monstartup("libdoom.so");
 #endif
         GLimp_AndroidInit(win);
@@ -86,7 +86,7 @@ public:
     }
 
     void stop() {
-#if PROFILING_ENABLED
+#if ID_PROFILING_ENABLED
         moncleanup();
 #endif
         GLimp_AndroidQuit();

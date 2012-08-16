@@ -8,6 +8,9 @@ include $(CLEAR_VARS)
 
 ETC1_PRESENTED := true
 ETC1_INCLUDE_DIR := $(LOCAL_PATH)/ETC1
+
+LOCAL_CFLAGS := $(GLOBAL_CFLAGS)
+
 LOCAL_SRC_FILES := \
     etc1.cpp
 
