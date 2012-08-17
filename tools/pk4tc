@@ -16,29 +16,47 @@
 usage() {
 cat << EOF
 Usage:
-$0 -i <input> -t <tool>  ...
+$0 -i <input> -t <tool> [-f <format>] ...
     -i <input>     Input pk4 base folder
     -t <tool>      Binary used for texture compression
+    -f <format>    Compression format [PVRTC4, PVRTC2, ETC]
 
 EOF
+}
+
+get_file_ext()
+{
+    format=$(echo $1 | awk '{print toupper($0)}')
+    case "$format" in
+        "PVRTC4")
+            echo "pvr"
+            ;;
+        "PVRTC2")
+            echo "pvr"
+            ;;
+        "ETC")
+            echo "pkm"
+            ;;
+    esac
+    echo ""
 }
 
 #
 # $1    Directory where we should find textures
 # $2    Binary for texture compressing
+# $3    Compression format
 #
 compress_textures()
 {
-    echo "************** Compressing: "$1" **************"
     find $1 -name \*.tga |
     while read texture
     do
-        outfile=$1"/pvr"${texture#$1}
+        ext=$(get_file_ext $3)
+        outfile=$1"/"$ext""${texture#$1}
         mkdir -p $outfile
-        $2 -i$texture -fPVRTC2 -o$outfile
+        $2 -i$texture -f$3 -o$outfile
         rmdir $outfile
     done
-    echo "******************* Compressed *********************"
 }
 
 #
@@ -47,22 +65,25 @@ compress_textures()
 #
 do_compression()
 {
+    echo "****************************************************"
     for pk_file in $1"/"*.pk4
     do
-        echo "Compressing: "$pk_file
+        echo "Processing pak file: "$pk_file
         pk_dir="${pk_file%*.pk4}"
         rm -rf $pk_dir
-        unzip -d $pk_dir $pk_file
-        compress_textures $pk_dir $2
+        unzip -d $pk_dir $pk_file > /dev/null
+        compress_textures $pk_dir $2 $3
         cd $pk_dir
-        zip -r -g $pk_file *
+        zip -r -g $pk_file * > /dev/null
         cd ..
         rm -rf $pk_dir
+        echo "****************************************************"
     done
 }
 
 input_dir=
 pvrtc_bin=
+pvrtc_fmt="PVRTC2"
 
 while [ $# -gt 0 ]; do
     arg="$1"
@@ -76,6 +97,10 @@ while [ $# -gt 0 ]; do
             pvrtc_bin="$1"
             shift
             ;;
+        "-f")
+            pvrtc_fmt="$1"
+            shift
+            ;;
         "-h")
             usage
             exit 0
@@ -84,10 +109,16 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -d "${input_dir}" ]; then
-    if [ -f "${pvrtc_bin}" ]; then
-        do_compression $input_dir $pvrtc_bin
+    if [ ! -z "$(get_file_ext $pvrtc_fmt)" ]; then
+        if [ -f "${pvrtc_bin}" ]; then
+            do_compression $input_dir $pvrtc_bin $pvrtc_fmt
+        else
+            printf "ERROR: PVRTC binary not specified\n" >&2
+            usage >&2
+            exit 0
+        fi
     else
-        printf "ERROR: PVRTC binary not specified\n" >&2
+        printf "ERROR: Bad compression format\n" >&2
         usage >&2
         exit 0
     fi
