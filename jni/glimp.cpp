@@ -69,8 +69,8 @@ void GLimp_AndroidSetResolution(int32_t width, int32_t height) {
         cvarSystem->SetCVarInteger("r_aspectRatio", 0);    // 4:3
     }
 
-    Sys_Printf("r_mode(%i), r_customWidth(%i), r_customHeight(%i)",
-            -1, width, height);
+    glConfig.vidWidth = width;
+    glConfig.vidHeight = height;
 }
 
 void GLimp_AndroidInit(ANativeWindow* win) {
@@ -141,7 +141,7 @@ void GLimp_ActivateContext() {
     eglQuerySurface(display, surface, EGL_HEIGHT, &screenHeight);
     GLimp_AndroidSetResolution(screenWidth, screenHeight);
 
-    Sys_Printf("Surface parms: width(%i), height(%i)",
+    Sys_DebugPrintf("Surface parms: width(%i), height(%i)",
             screenWidth, screenHeight);
 
     LOG_METHOD_END
