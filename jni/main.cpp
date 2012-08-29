@@ -33,6 +33,7 @@ If you have questions concerning this license or the applicable additional terms
 #include <stdio.h>
 #include <assert.h>
 
+#include <android/window.h>
 #include <android_native_app_glue.h>
 
 #if ID_PROFILING_ENABLED
@@ -208,10 +209,12 @@ void android_main(struct android_app* state) {
     state->userData = &engine;
     state->onAppCmd = handleCmd;
     state->onInputEvent = handleInput;
+    ANativeActivity_setWindowFlags(state->activity,
+            AWINDOW_FLAG_FULLSCREEN | AWINDOW_FLAG_KEEP_SCREEN_ON, 0);
 
 #if 0
     cvarSystem->SetCVarBool("com_speeds",  true);
-    cvarSystem->SetCVarBool("com_showMemoryUsage",  true);
+    cvarSystem->SetCVarBool("com_showMemoryUsage", true);
 #endif
 #ifdef NO_SOUND
     cvarSystem->SetCVarBool("s_noSound", true);
