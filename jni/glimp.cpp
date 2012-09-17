@@ -318,9 +318,11 @@ bool GLimp_Init(glimpParms_t params) {
 
     GLimp_ActivateContext();
 
-    // print some gpu info
-    Sys_Printf("GL_RENDERER: %s", glGetString(GL_RENDERER));
-    Sys_Printf("GL_EXTENSIONS: %s", glGetString(GL_EXTENSIONS));
+    if(cvarSystem->GetCVarBool("developer")) {
+        // print some gpu info
+        Sys_Printf("GL_RENDERER: %s", glGetString(GL_RENDERER));
+        Sys_Printf("GL_EXTENSIONS: %s", glGetString(GL_EXTENSIONS));
+    }
 
 #if 0
     // draw something to show that GL is alive

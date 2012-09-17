@@ -213,8 +213,7 @@ void android_main(struct android_app* state) {
             AWINDOW_FLAG_FULLSCREEN | AWINDOW_FLAG_KEEP_SCREEN_ON, 0);
 
 #if 0
-    cvarSystem->SetCVarBool("com_speeds",  true);
-    cvarSystem->SetCVarBool("com_showMemoryUsage", true);
+    cvarSystem->SetCVarBool("developer", true);
 #endif
 #ifdef NO_SOUND
     cvarSystem->SetCVarBool("s_noSound", true);

@@ -27,21 +27,17 @@ If you have questions concerning this license or the applicable additional terms
 ===========================================================================
 */
 
+#include <idlib/precompiled.h>
+
 #include <android/log.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 
-//#define LOG_DEBUG 1
 #define LOG_TAG "Doom"
 #define LOGI(...)  __android_log_print(ANDROID_LOG_INFO,LOG_TAG,__VA_ARGS__)
 #define LOGE(...)  __android_log_print(ANDROID_LOG_ERROR,LOG_TAG,__VA_ARGS__)
-#ifdef LOG_DEBUG
-#define LOGV(...) LOGI(__VA_ARGS__)
-#else
-#define LOGV(...)
-#endif
 
 #define FILL_BUFFER \
     char buffer[1024]; \
@@ -51,16 +47,18 @@ If you have questions concerning this license or the applicable additional terms
     va_end(argptr);
 
 void Sys_DebugPrintf(const char *fmt, ...) {
-#ifdef LOG_DEBUG
+    if(!cvarSystem->GetCVarBool("developer")) {
+        return;
+    }
     FILL_BUFFER;
-    LOGV(buffer);
-#endif
+    LOGI(buffer);
 }
 
 void Sys_DebugVPrintf(const char *fmt, va_list arg) {
-#ifdef LOG_DEBUG
+    if(!cvarSystem->GetCVarBool("developer")) {
+        return;
+    }
     vprintf(fmt, arg);
-#endif
 }
 
 void Sys_Printf(const char *fmt, ...) {
